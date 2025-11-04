@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Shuffle } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Loader2, Shuffle, Sparkles } from "lucide-react";
 import { getRandomTopic } from "@/lib/topics";
 import { validatePassageSimple } from "@/lib/simpleValidator";
 
@@ -43,6 +44,28 @@ export function PromptForm() {
   } = useAppStore();
 
   const [localQuestionTypes, setLocalQuestionTypes] = useState<string[]>(questionTypes);
+  const [showEasterEgg, setShowEasterEgg] = useState(false);
+  const [easterEggImage, setEasterEggImage] = useState("");
+  const [easterEggMessage, setEasterEggMessage] = useState("");
+
+  // Easter egg trigger - check topic for secret keywords
+  useEffect(() => {
+    const topicLower = topic.toLowerCase();
+    
+    if (topicLower.includes("tuğçe")) {
+      setShowEasterEgg(true);
+      setEasterEggImage("/IMG_0220.PNG");
+      setEasterEggMessage("Minik bir sürpriz daha! 🎉");
+    } else if (topicLower.includes("kerem")) {
+      setShowEasterEgg(true);
+      setEasterEggImage("/foto2.JPG");
+      setEasterEggMessage("Başka benim olduğum foto yoktu");
+    } else {
+      setShowEasterEgg(false);
+      setEasterEggImage("");
+      setEasterEggMessage("");
+    }
+  }, [topic]);
 
   const handleRandomTopic = () => {
     const randomTopic = getRandomTopic();
@@ -341,6 +364,46 @@ export function PromptForm() {
           )}
         </Button>
       </div>
+
+      {/* Easter Egg Dialog */}
+      <Dialog open={showEasterEgg} onOpenChange={setShowEasterEgg}>
+        <DialogContent className="max-w-2xl">
+          <DialogTitle className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 animate-in slide-in-from-top text-center">
+            ✨ Sürpriiiiz! ✨
+          </DialogTitle>
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <Sparkles className="h-12 w-12 text-yellow-500 animate-pulse" />
+            </div>
+            <p className="text-xl text-gray-700 font-semibold animate-in slide-in-from-bottom">
+              Easter egg bulundu! 🎊
+            </p>
+            
+            {/* Fotoğraf */}
+            {easterEggImage && (
+              <div className="relative overflow-hidden rounded-xl shadow-2xl border-4 border-gradient-to-r from-purple-400 to-pink-400">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-200/20 to-pink-200/20 animate-pulse"></div>
+                <img 
+                  src={easterEggImage} 
+                  alt="Special Surprise" 
+                  className="w-full h-auto max-h-[70vh] object-contain animate-in zoom-in duration-700 relative z-10"
+                />
+              </div>
+            )}
+            
+            <p className="text-sm text-gray-600 italic font-medium">
+              {easterEggMessage || "Tuğçe Camgöz için yapıldı!"}
+            </p>
+            
+            <Button 
+              onClick={() => setShowEasterEgg(false)}
+              className="mx-auto"
+            >
+              Teşekkürler! 😊
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
