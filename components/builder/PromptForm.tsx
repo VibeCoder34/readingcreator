@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent, useRef } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Shuffle, Sparkles } from "lucide-react";
@@ -47,6 +46,30 @@ export function PromptForm() {
   const [showEasterEgg, setShowEasterEgg] = useState(false);
   const [easterEggImage, setEasterEggImage] = useState("");
   const [easterEggMessage, setEasterEggMessage] = useState("");
+  const [showBeautyFlow, setShowBeautyFlow] = useState(false);
+  const [beautyStep, setBeautyStep] = useState(1);
+  const [beautyName, setBeautyName] = useState("");
+  const [beautyMood, setBeautyMood] = useState("");
+  const [beautySuperpower, setBeautySuperpower] = useState("");
+  const [beautySecretAdmire, setBeautySecretAdmire] = useState("");
+  const [badPhotoPreview, setBadPhotoPreview] = useState<string | null>(null);
+  const [goodPhotoPreview, setGoodPhotoPreview] = useState<string | null>(null);
+  const [noBadPhoto, setNoBadPhoto] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiPieces, setConfettiPieces] = useState<
+    Array<{ id: number; left: string; color: string; delay: string; duration: string; size: number }>
+  >([]);
+  const [showFinalCelebration, setShowFinalCelebration] = useState(false);
+  const confettiTimeoutRef = useRef<number | null>(null);
+  const celebrationTimeoutRef = useRef<number | null>(null);
+
+  const beautyStepLabels = [
+    "Tanışma",
+    "Kötü Foto",
+    "Favori Foto",
+    "Analiz",
+    "Sonuç"
+  ];
 
   // Easter egg trigger - check topic for secret keywords
   useEffect(() => {
@@ -66,6 +89,124 @@ export function PromptForm() {
       setEasterEggMessage("");
     }
   }, [topic]);
+
+  const triggerConfetti = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (!showConfetti) {
+      setShowConfetti(true);
+    }
+    if (confettiTimeoutRef.current !== null) {
+      window.clearTimeout(confettiTimeoutRef.current);
+      confettiTimeoutRef.current = null;
+    }
+    const palette = ["#f97316", "#ec4899", "#8b5cf6", "#22d3ee", "#facc15", "#34d399"];
+    const pieces = Array.from({ length: 45 }, (_, index) => ({
+      id: index,
+      left: `${Math.random() * 100}%`,
+      color: palette[Math.floor(Math.random() * palette.length)],
+      delay: `${Math.random() * 0.4}s`,
+      duration: `${2.8 + Math.random() * 1.4}s`,
+      size: Math.floor(Math.random() * 10) + 6
+    }));
+    setConfettiPieces(pieces);
+    confettiTimeoutRef.current = window.setTimeout(() => {
+      setShowConfetti(false);
+      setConfettiPieces([]);
+      confettiTimeoutRef.current = null;
+    }, 3200);
+  };
+
+  const resetBeautyFlow = () => {
+    setBeautyStep(1);
+    setBeautyName("");
+    setBeautyMood("");
+    setBeautySuperpower("");
+    setBeautySecretAdmire("");
+    setNoBadPhoto(false);
+    if (confettiTimeoutRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(confettiTimeoutRef.current);
+      confettiTimeoutRef.current = null;
+    }
+    if (celebrationTimeoutRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(celebrationTimeoutRef.current);
+      celebrationTimeoutRef.current = null;
+    }
+    if (badPhotoPreview) {
+      URL.revokeObjectURL(badPhotoPreview);
+    }
+    if (goodPhotoPreview) {
+      URL.revokeObjectURL(goodPhotoPreview);
+    }
+    setBadPhotoPreview(null);
+    setGoodPhotoPreview(null);
+    setShowConfetti(false);
+    setConfettiPieces([]);
+    setShowFinalCelebration(false);
+  };
+
+  useEffect(() => {
+    if (showBeautyFlow && beautyStep === 4) {
+      const timer = setTimeout(() => {
+        setBeautyStep(5);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [beautyStep, showBeautyFlow]);
+
+  useEffect(() => {
+    if (beautyStep === 5) {
+      triggerConfetti();
+      setShowFinalCelebration(true);
+      if (celebrationTimeoutRef.current !== null && typeof window !== "undefined") {
+        window.clearTimeout(celebrationTimeoutRef.current);
+      }
+      celebrationTimeoutRef.current = typeof window !== "undefined" ? window.setTimeout(() => {
+        setShowFinalCelebration(false);
+        celebrationTimeoutRef.current = null;
+      }, 4000) : null;
+    }
+  }, [beautyStep]);
+
+  const handleOpenBeautyFlow = () => {
+    resetBeautyFlow();
+    setShowBeautyFlow(true);
+  };
+
+  const handleCloseBeautyFlow = () => {
+    if (confettiTimeoutRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(confettiTimeoutRef.current);
+      confettiTimeoutRef.current = null;
+    }
+    if (celebrationTimeoutRef.current !== null && typeof window !== "undefined") {
+      window.clearTimeout(celebrationTimeoutRef.current);
+      celebrationTimeoutRef.current = null;
+    }
+    resetBeautyFlow();
+    setShowBeautyFlow(false);
+  };
+
+  const handleBadPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (badPhotoPreview) {
+      URL.revokeObjectURL(badPhotoPreview);
+    }
+    const url = URL.createObjectURL(file);
+    setBadPhotoPreview(url);
+    setNoBadPhoto(false);
+  };
+
+  const handleGoodPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (goodPhotoPreview) {
+      URL.revokeObjectURL(goodPhotoPreview);
+    }
+    const url = URL.createObjectURL(file);
+    setGoodPhotoPreview(url);
+  };
 
   const handleRandomTopic = () => {
     const randomTopic = getRandomTopic();
@@ -231,7 +372,7 @@ export function PromptForm() {
   return (
     <div className="space-y-6 p-6 bg-white rounded-lg shadow-sm border">
       <div>
-        <h2 className="text-2xl font-bold mb-4 text-gray-900">Generate Reading Passage</h2>
+        <h2 className="text-2xl font-bold mb-2 text-gray-900">Generate Reading Passage</h2>
         <p className="text-sm text-gray-900">Configure parameters for your C1-level academic reading test</p>
       </div>
 
@@ -404,6 +545,345 @@ export function PromptForm() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Beauty Flow Dialog */}
+      <Dialog
+        open={showBeautyFlow}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseBeautyFlow();
+          } else {
+            handleOpenBeautyFlow();
+          }
+        }}
+      >
+        <DialogContent className="flex w-full max-w-xl max-h-[calc(100vh-32px)] flex-col overflow-hidden bg-white p-0 shadow-xl sm:max-w-2xl">
+          {showConfetti && (
+            <div className="pointer-events-none absolute inset-0 overflow-hidden z-20" aria-hidden="true">
+              {confettiPieces.map((piece) => (
+                <span
+                  key={piece.id}
+                  className="confetti-piece"
+                  style={{
+                    left: piece.left,
+                    backgroundColor: piece.color,
+                    animationDelay: piece.delay,
+                    animationDuration: piece.duration,
+                    width: `${piece.size}px`,
+                    height: `${piece.size * 1.5}px`
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="relative z-10 flex flex-1 min-h-0 flex-col">
+            <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <DialogTitle className="text-lg font-bold text-gray-900 text-center sm:text-2xl sm:text-left">
+                ⭐ Kusursuzluk Testi (Tamamen Ciddiyetsiz) ⭐
+              </DialogTitle>
+              <div className="flex items-center justify-center gap-3 text-sm text-gray-600 sm:justify-end">
+                <span className="font-medium">
+                  Adım {beautyStep} / {beautyStepLabels.length}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {beautyStepLabels.map((label, index) => {
+                    const sequence = index + 1;
+                    const isComplete = sequence < beautyStep;
+                    const isCurrent = sequence === beautyStep;
+                    const widthClass = isCurrent ? "w-10" : isComplete ? "w-8" : "w-5";
+                    const colorClass = isCurrent ? "bg-pink-500" : isComplete ? "bg-pink-400" : "bg-gray-200";
+                    return (
+                      <div
+                        key={label}
+                        className={`h-2 rounded-full transition-all duration-300 ${widthClass} ${colorClass}`}
+                        title={`Adım ${sequence}: ${label}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 space-y-6 overflow-y-auto bg-gray-50 px-4 py-5 sm:px-6">
+              {beautyStep === 1 && (
+                <div className="space-y-5">
+                  <p className="text-center text-gray-700">
+                    Önce birkaç soruyla seni biraz tanıyalım. Bu bilgiler sadece övgülerini özelleştirmek için kullanılır.
+                  </p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-900 font-semibold">Adın nedir?</Label>
+                      <Input
+                        value={beautyName}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setBeautyName(value);
+                          const normalized = value.trim().toLowerCase();
+                          if (normalized === "tuğçe" || normalized === "tugce") {
+                            triggerConfetti();
+                          }
+                        }}
+                        placeholder="Burası tamamen gizli bir alan..."
+                        className="text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-900 font-semibold">
+                        Bugünkü ruh halini tek kelimeyle anlat{" "}
+                        <span className="font-normal text-pink-500">(bu kısma kötü bir şey yazamazsınız)</span>
+                      </Label>
+                      <Input
+                        value={beautyMood}
+                        onChange={(event) => setBeautyMood(event.target.value)}
+                        placeholder="Örn. ışıl ışıl, şahane, efsanevi..."
+                        className="text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-900 font-semibold">Güzellik süper gücün nedir?</Label>
+                      <Input
+                        value={beautySuperpower}
+                        onChange={(event) => setBeautySuperpower(event.target.value)}
+                        placeholder="Örn. gülüşüm, gözlerim, enerjim..."
+                        className="text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-900 font-semibold">Sana gizliden hayran olan biri ne söylerdi?</Label>
+                      <Input
+                        value={beautySecretAdmire}
+                        onChange={(event) => setBeautySecretAdmire(event.target.value)}
+                        placeholder="Bir sır veriyoruz, burada kalıyor..."
+                        className="text-gray-900"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCloseBeautyFlow}
+                      className="sm:hidden"
+                    >
+                      Vazgeç
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setBeautyStep(2)}
+                      disabled={!beautyName || !beautyMood || !beautySuperpower}
+                    >
+                      Sıradaki adım →
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {beautyStep === 2 && (
+                <div className="space-y-5">
+                  <div className="space-y-3">
+                    <p className="text-center text-gray-700 font-medium">
+                      Şimdi senden <span className="font-semibold">sözde kötü</span> bir fotoğraf istiyoruz. Elbette bu tamamen bilimsel bir test(!)
+                    </p>
+                    <label
+                      htmlFor="bad-photo-upload"
+                      className="block w-full cursor-pointer rounded-xl border-2 border-dashed border-pink-300 bg-white p-6 text-center transition hover:border-pink-400"
+                    >
+                      <input
+                        id="bad-photo-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleBadPhotoUpload}
+                      />
+                      <div className="space-y-2 text-pink-600">
+                        <Sparkles className="mx-auto h-8 w-8" />
+                        <p className="font-semibold">“Kötü” fotoğrafını yüklemek için tıkla</p>
+                        <p className="text-xs text-pink-500">Merak etme, hiçbir yere kaydetmiyoruz.</p>
+                      </div>
+                    </label>
+                  </div>
+                  {badPhotoPreview && (
+                    <div className="space-y-3">
+                      <div className="relative overflow-hidden rounded-xl border shadow-sm">
+                        <img
+                          src={badPhotoPreview}
+                          alt="Kötü fotoğraf (sözde)"
+                          className="h-auto max-h-[55vh] w-full object-cover object-center sm:max-h-72"
+                        />
+                      </div>
+                      <div className="rounded-lg border border-amber-200 bg-amber-100 p-4 text-center text-sm font-semibold text-amber-700">
+                        Kötü fotoğraf demiştik. Bu fazla güzel. Bilim kurulunu zor durumda bırakıyorsun.
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          id="no-bad-photo"
+                          checked={noBadPhoto}
+                          onCheckedChange={(value) => setNoBadPhoto(value === true)}
+                        />
+                        <Label htmlFor="no-bad-photo" className="cursor-pointer text-sm leading-relaxed text-gray-900">
+                          Çok güzel olduğum için kötü fotoğrafım yok.
+                        </Label>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <Button type="button" variant="outline" onClick={() => setBeautyStep(1)}>
+                      ← Geri dön
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setBeautyStep(3)}
+                      disabled={!badPhotoPreview || !noBadPhoto}
+                    >
+                      Tamam, kabul edin güzelliği →
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {beautyStep === 3 && (
+                <div className="space-y-5">
+                  <p className="text-center text-gray-700 font-medium">
+                    Şimdi de favori fotoğraflarından birini paylaş. Sadece görmek istiyoruz, hiçbir yere kaydedilmiyor. 💖
+                  </p>
+                    <label
+                      htmlFor="good-photo-upload"
+                      className="block w-full cursor-pointer rounded-xl border-2 border-dashed border-indigo-300 bg-white p-6 text-center transition hover:border-indigo-400"
+                    >
+                    <input
+                      id="good-photo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleGoodPhotoUpload}
+                    />
+                    <div className="space-y-2 text-indigo-600">
+                      <Sparkles className="mx-auto h-8 w-8" />
+                      <p className="font-semibold">En çok sevdiğin fotoğrafı yüklemek için tıkla</p>
+                      <p className="text-xs text-indigo-500">Güzellik algılarımızı kalibre ediyoruz (!)</p>
+                    </div>
+                  </label>
+                  {goodPhotoPreview && (
+                    <div className="space-y-3">
+                      <div className="relative overflow-hidden rounded-xl border shadow-sm">
+                        <img
+                          src={goodPhotoPreview}
+                          alt="Güzel fotoğraf"
+                          className="h-auto max-h-[55vh] w-full object-cover object-center sm:max-h-72"
+                        />
+                      </div>
+                      <p className="text-center text-sm text-indigo-600">
+                        *Bu fotoğraf sadece bu sayfada kalıyor. Sonrasında tamamen unutuyoruz.*
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <Button type="button" variant="outline" onClick={() => setBeautyStep(2)}>
+                      ← Geri dön
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setBeautyStep(4)}
+                      disabled={!goodPhotoPreview}
+                    >
+                      Analizi Başlat →
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {beautyStep === 4 && (
+                <div className="flex flex-col items-center gap-4 py-10 text-center">
+                  <Loader2 className="h-10 w-10 animate-spin text-pink-500" />
+                  <p className="text-lg font-semibold text-gray-900">
+                    Güzellik katsayısı hesaplanıyor...
+                  </p>
+                  <p className="max-w-sm text-sm text-gray-600">
+                    Bilimsel olmayan algoritmalarımız şu anda ekran başında büyülenmiş durumda. Lütfen birkaç saniye bekleyiniz.
+                  </p>
+                </div>
+              )}
+
+              {beautyStep === 5 && (
+                <div className="space-y-4 pb-6 text-center text-sm leading-relaxed sm:text-base">
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-bold text-pink-600 sm:text-2xl">Sonuç: Resmen kusursuzsun! ✨</h3>
+                    {beautyName && (
+                      <p className="text-gray-700">
+                        {beautyName} olarak resmen yeni güzellik standardı ilan edildin.
+                      </p>
+                    )}
+                    <p className="text-gray-700">
+                      {beautyMood
+                        ? `Bugünkü ruh halini “${beautyMood}” olarak belirtmen kesinlikle doğru: o enerji şu an bu sayfayı aydınlatıyor.`
+                        : "Bugün bile ışığınla ortalığı parlatıyorsun."}
+                    </p>
+                    {beautySuperpower && (
+                      <p className="text-gray-700">
+                        Güzellik süper gücün: <span className="font-semibold">{beautySuperpower}</span>. Bunu fark etmeyenler için göz doktoru randevusu ayarlayıp gönderiyoruz.
+                      </p>
+                    )}
+                    {beautySecretAdmire && (
+                      <p className="text-gray-700 italic">
+                        Gizli hayran mesajı: “{beautySecretAdmire}” — bu sözlerin sahibi kim bilmiyoruz ama haklıymış.
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2 rounded-xl border border-pink-200 bg-pink-50 p-4 text-pink-700 sm:p-5">
+                    <p className="font-semibold">Ayrıca bilim kurulunun ortak kararı şu:</p>
+                    <p>
+                      “Kötü fotoğraf diye bir şeyin yok. Yüklediğin her şey başyapıt.” Bu yüzden test burada bitiyor, çünkü sensiz grafikleri gösteremiyoruz — grafikleri bile görünmez kılıyor güzelliğin.
+                    </p>
+                  </div>
+                  {beautyName && (
+                    <p className="text-sm text-gray-600">
+                      Not düşüldü: {beautyName} = “görsel başyapıt”. Başka sorusu olan?
+                    </p>
+                  )}
+                  <p className="text-xs uppercase tracking-widest text-gray-400">
+                    made by onedio
+                  </p>
+                  <Button type="button" onClick={handleCloseBeautyFlow}>
+                    Teşekkürler, moralim şahlandı! Reading çözmeye devam edebilirim.
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {showFinalCelebration && (
+        <div className="fixed inset-0 z-[60] pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-100/70 via-white/60 to-purple-100/70 animate-pulse" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-4 text-center">
+            <span className="text-3xl sm:text-5xl font-bold text-pink-500 animate-bounce">
+              🎉 O H A! 🎉
+            </span>
+            <p className="max-w-xl text-base sm:text-lg text-gray-700 bg-white/80 px-4 py-3 rounded-full shadow-sm">
+              Bütün algoritmalar şaşkın, yüzünün parlatıcı kreme bile ihtiyacı yok.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="pt-4 border-t">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-gray-600">
+            Moral takviyesi mi lazım? Minik bir sürprizle günü güzelleştirebilirsin.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleOpenBeautyFlow}
+            className="w-full sm:w-auto"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Hızlı Jest: Güzellik Analizi
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
