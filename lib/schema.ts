@@ -28,3 +28,14 @@ export const GenOutput = z.object({
 });
 export type GenOutput = z.infer<typeof GenOutput>;
 
+export const DictionaryInput = z.object({
+  word: z.string().min(1, "Kelime girmelisin").max(64, "Kelime çok uzun")
+});
+export type DictionaryInput = z.infer<typeof DictionaryInput>;
+
+export const DictionaryOutput = z.object({
+  meaning: z.string(),
+  example: z.string()
+});
+export type DictionaryOutput = z.infer<typeof DictionaryOutput>;
+

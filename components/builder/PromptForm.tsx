@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type ChangeEvent, useRef } from "react";
+import { useState, useEffect, type ChangeEvent, useRef, type FormEvent } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Shuffle, Sparkles } from "lucide-react";
+import { BookOpen, Loader2, Shuffle, Sparkles } from "lucide-react";
 import { getRandomTopic } from "@/lib/topics";
 import { validatePassageSimple } from "@/lib/simpleValidator";
 
@@ -62,6 +62,11 @@ export function PromptForm() {
   const [showFinalCelebration, setShowFinalCelebration] = useState(false);
   const confettiTimeoutRef = useRef<number | null>(null);
   const celebrationTimeoutRef = useRef<number | null>(null);
+  const [showDictionary, setShowDictionary] = useState(false);
+  const [dictionaryWord, setDictionaryWord] = useState("");
+  const [dictionaryResult, setDictionaryResult] = useState<{ meaning: string; example: string } | null>(null);
+  const [dictionaryError, setDictionaryError] = useState<string | null>(null);
+  const [dictionaryLoading, setDictionaryLoading] = useState(false);
 
   const beautyStepLabels = [
     "Tanışma",
@@ -185,6 +190,57 @@ export function PromptForm() {
     }
     resetBeautyFlow();
     setShowBeautyFlow(false);
+  };
+
+  const resetDictionary = () => {
+    setDictionaryWord("");
+    setDictionaryResult(null);
+    setDictionaryError(null);
+    setDictionaryLoading(false);
+  };
+
+  const handleOpenDictionary = () => {
+    resetDictionary();
+    setShowDictionary(true);
+  };
+
+  const handleCloseDictionary = () => {
+    resetDictionary();
+    setShowDictionary(false);
+  };
+
+  const handleDictionaryLookup = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = dictionaryWord.trim();
+    if (!trimmed) {
+      setDictionaryError("Bir kelime yazmalısın.");
+      return;
+    }
+
+    setDictionaryError(null);
+    setDictionaryLoading(true);
+
+    try {
+      const response = await fetch("/api/dictionary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word: trimmed })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || "Sözlük kaydı alınamadı.");
+      }
+
+      const data = await response.json();
+      setDictionaryResult(data);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Beklenmeyen bir hata oluştu.";
+      setDictionaryError(message);
+      setDictionaryResult(null);
+    } finally {
+      setDictionaryLoading(false);
+    }
   };
 
   const handleBadPhotoUpload = (event: ChangeEvent<HTMLInputElement>) => {
@@ -546,6 +602,92 @@ export function PromptForm() {
         </DialogContent>
       </Dialog>
 
+      {/* Dictionary Dialog */}
+      <Dialog
+        open={showDictionary}
+        onOpenChange={(open) => {
+          if (open) {
+            resetDictionary();
+            setShowDictionary(true);
+          } else {
+            handleCloseDictionary();
+          }
+        }}
+      >
+        <DialogContent className="w-full max-w-lg rounded-2xl border border-indigo-100 bg-white px-6 py-6 shadow-xl sm:px-8">
+          <DialogTitle className="text-center text-2xl font-semibold text-indigo-600">
+            📚 Mini Sözlük
+          </DialogTitle>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Kelimeyi yaz, Türkçe açıklamasını ve şık bir İngilizce örneğini hemen görelim.
+          </p>
+
+          <form className="mt-5 space-y-4" onSubmit={handleDictionaryLookup}>
+            <div className="space-y-2">
+              <Label htmlFor="dictionary-word" className="text-sm font-semibold text-gray-900">
+                Kelime
+              </Label>
+              <Input
+                id="dictionary-word"
+                value={dictionaryWord}
+                onChange={(event) => setDictionaryWord(event.target.value)}
+                placeholder="Örn. serendipity"
+                autoComplete="off"
+                autoFocus
+              />
+            </div>
+            <Button
+              type="submit"
+              className="w-full bg-indigo-500 hover:bg-indigo-600"
+              disabled={dictionaryLoading || dictionaryWord.trim().length === 0}
+            >
+              {dictionaryLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Yorumlar hazırlanıyor...
+                </>
+              ) : (
+                "Anlamını Göster"
+              )}
+            </Button>
+          </form>
+
+          {dictionaryError && (
+            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+              {dictionaryError}
+            </div>
+          )}
+
+          {dictionaryResult && (
+            <div className="mt-5 space-y-4 rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-indigo-100/60 p-5 shadow-inner">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-indigo-700">Türkçe Anlamı</h3>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-gray-700">
+                  {dictionaryResult.meaning}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-indigo-500">İngilizce Örnek</h4>
+                <p className="rounded-xl border border-indigo-200 bg-white/80 px-4 py-3 text-sm italic text-gray-700 shadow-sm">
+                  {dictionaryResult.example}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 text-center">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleCloseDictionary}
+              className="text-sm font-medium text-indigo-500 hover:text-indigo-600"
+            >
+              Kapat ve Reading’e geri dön
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Beauty Flow Dialog */}
       <Dialog
         open={showBeautyFlow}
@@ -868,7 +1010,25 @@ export function PromptForm() {
         </div>
       )}
 
-      <div className="pt-4 border-t">
+      <div className="pt-4 border-t space-y-6">
+        <div className="flex flex-col gap-3 rounded-lg border border-indigo-100 bg-indigo-50/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-indigo-700">Kelimeye takıldın mı?</p>
+            <p className="text-xs text-indigo-500">
+              Mini sözlükten Türkçe anlamı ve havalı bir İngilizce örneği hemen yakala.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleOpenDictionary}
+            className="w-full border-indigo-200 text-indigo-600 hover:bg-indigo-500 hover:text-white sm:w-auto"
+          >
+            <BookOpen className="mr-2 h-4 w-4" />
+            Sözlüğe Git
+          </Button>
+        </div>
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-600">
             Moral takviyesi mi lazım? Minik bir sürprizle günü güzelleştirebilirsin.
